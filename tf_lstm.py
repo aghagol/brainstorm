@@ -23,7 +23,7 @@ import random
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
-map_fn = tf.python.functional_ops.map_fn
+map_fn = tf.map_fn
 
 ################################################################################
 ##                           DATASET GENERATION                               ##
@@ -110,9 +110,11 @@ outputs = tf.placeholder(tf.float32, (None, None, OUTPUT_SIZE)) # (time, batch, 
 # Example LSTM cell with learnable zero_state can be found here:
 #    https://gist.github.com/nivwusquorum/160d5cf7e1e82c21fad3ebf04f039317
 if USE_LSTM:
-    cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_HIDDEN, state_is_tuple=True)
+    # cell = tf.nn.rnn_cell.BasicLSTMCell(RNN_HIDDEN, state_is_tuple=True)
+    cell = tf.contrib.rnn.BasicLSTMCell(RNN_HIDDEN, state_is_tuple=True)
 else:
-    cell = tf.nn.rnn_cell.BasicRNNCell(RNN_HIDDEN)
+    # cell = tf.nn.rnn_cell.BasicRNNCell(RNN_HIDDEN)
+    cell = tf.contrib.rnn.BasicRNNCell(RNN_HIDDEN)
 
 # Create initial state. Here it is just a constant tensor filled with zeros,
 # but in principle it could be a learnable parameter. This is a bit tricky
@@ -159,7 +161,7 @@ session = tf.Session()
 # For some reason it is our job to do this:
 session.run(tf.initialize_all_variables())
 
-for epoch in range(1000):
+for epoch in range(10):
     epoch_error = 0
     for _ in range(ITERATIONS_PER_EPOCH):
         # here train_fn is what triggers backprop. error and accuracy on their
@@ -174,4 +176,4 @@ for epoch in range(1000):
         inputs:  valid_x,
         outputs: valid_y,
     })
-    print "Epoch %d, train error: %.2f, valid accuracy: %.1f %%" % (epoch, epoch_error, valid_accuracy * 100.0)
+    print("Epoch %d, train error: %.2f, valid accuracy: %.1f %%" % (epoch, epoch_error, valid_accuracy * 100.0))

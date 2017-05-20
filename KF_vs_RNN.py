@@ -44,7 +44,7 @@ for i in range(1,x.shape[0]):
   statelog.append(kf.x.T)
 statelog = np.vstack(statelog)
 plt.plot(statelog[:,0],statelog[:,1],color='green');plt.pause(.1)
-plt.show()
+plt.pause(3)
 
 # #track using RNN
 # import tensorflow as tf
