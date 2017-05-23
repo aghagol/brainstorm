@@ -5,8 +5,8 @@ import warnings
 warnings.filterwarnings("ignore")
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
+state_order = 1
 curve_order = 3
-kalman_order = 2
 update_step = 10
 
 #generate sequence
@@ -39,10 +39,7 @@ for i in range(1,x.shape[0]):
   statelog.append(kf.x.T)
 statelog = np.vstack(statelog)
 plt.plot(statelog[:,0],statelog[:,1],color='green');plt.pause(.1)
-plt.pause(3)
+plt.pause(1)
 
 # #track using RNN
 # import tensorflow as tf
-# hello = tf.constant('Hello, TensorFlow!')
-# sess = tf.Session()
-# print(sess.run(hello))

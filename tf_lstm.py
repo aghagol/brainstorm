@@ -86,7 +86,7 @@ def generate_batch(num_bits, batch_size):
 ################################################################################
 
 INPUT_SIZE    = 2       # 2 bits per timestep
-RNN_HIDDEN    = 20
+RNN_HIDDEN    = 20      # dimention of hidden variable?
 OUTPUT_SIZE   = 1       # 1 bit per timestep
 TINY          = 1e-6    # to avoid NaNs in logs
 LEARNING_RATE = 0.01
@@ -157,7 +157,8 @@ BATCH_SIZE = 16
 
 valid_x, valid_y = generate_batch(num_bits=NUM_BITS, batch_size=100)
 
-session = tf.Session()
+# session = tf.Session()
+session = tf.InteractiveSession()
 # For some reason it is our job to do this:
 session.run(tf.initialize_all_variables())
 
