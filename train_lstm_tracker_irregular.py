@@ -5,31 +5,38 @@ import tensorflow.contrib.layers as layers
 map_fn = tf.map_fn
 import matplotlib.pyplot as plt
 ###################################### helper functions
-def generate_batch(seq_length,batch_size,curve_order,curve_step,hist_depth):
-  x = np.empty((seq_length, batch_size, 2*hist_depth))
-  for batch_number in range(batch_size):
-    xloc = (np.arange(seq_length).reshape(seq_length,1)-(seq_length/2))*curve_step
+def gen_data_batch(seq_length,batch_size,curve_order,curve_step,hist_depth):
+  x = np.empty((seq_length,batch_size,3*hist_depth))
+  for sample_number in range(batch_size):
+    xloc = np.sort(np.random.rand(seq_length)-.5).reshape(seq_length,1)*seq_length/2*curve_step
     yloc = np.hstack([xloc**p for p in range(curve_order+1)]).dot(np.random.randn(curve_order+1,1))
-    x[:,batch_number,0] = xloc.squeeze()
-    x[:,batch_number,1] = yloc.squeeze()
+    x[:,sample_number,0] = xloc.squeeze()
+    x[:,sample_number,1] = yloc.squeeze()
+  x[:,:,2] = np.sqrt(((np.roll(x[:,:,:2],-1,axis=0)-x[:,:,:2])**2).sum(axis=2))
   for level_down in range(1,hist_depth):
-    x[:,:,2*level_down:2*level_down+2] = np.roll(x[:,:,:2],-1*level_down,axis=0)
+    x[:,:,3*level_down:3*(level_down+1)] = np.roll(x[:,:,:3],-1*level_down,axis=0)
   y = np.roll(x[:,:,:2],-hist_depth,axis=0) #future locations
   return x[:-1*hist_depth,:,:], y[:-1*hist_depth,:,:]
+def arc_length(curve_order,x1,x2):
+  if curve_order==2:
+    F = lambda x: .5*(x*np.sqrt(1+4*x**2)+.5*np.log(np.sqrt(1+4*x**2)+2*x)) #crazy math
+    return F(x2)-F(x1)
+  else:
+    return None
 ###################################### data parameters (for training and validation)
 CURVE_ORDER = 2
-CURVE_STEP = .1
-SEQ_LENGTH = 20
+CURVE_STEP = .5
+SEQ_LENGTH = 25
 HIST_DEPTH = 5
 ###################################### model parameters
 USE_LSTM = True
-INPUT_SIZE = 2*HIST_DEPTH
+INPUT_SIZE = 3*HIST_DEPTH
 OUTPUT_SIZE = 2
-RNN_HIDDEN = 20
+RNN_HIDDEN = 100
 ###################################### training parameters
 BATCH_SIZE = 100
 LEARNING_RATE = .01
-N_EPOCHS = 1000
+N_EPOCHS = 100000
 ITERATIONS_PER_EPOCH = 100
 ###################################### tf graph build-up
 inputs  = tf.placeholder(tf.float32, (None, None, INPUT_SIZE))  # (time, batch, in)
@@ -43,7 +50,7 @@ predicted_outputs = map_fn(final_projection, rnn_outputs)
 error = tf.reduce_mean((predicted_outputs-outputs)**2)
 train_fn = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(error)
 ###################################### training
-valid_x, valid_y = generate_batch(SEQ_LENGTH,100,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
+valid_x, valid_y = gen_data_batch(SEQ_LENGTH,100,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
 session = tf.Session()
 session.run(tf.initialize_all_variables())
 for epoch in range(N_EPOCHS):
@@ -53,14 +60,14 @@ for epoch in range(N_EPOCHS):
   sample_lab = valid_y[:,:1,:]
   plt.clf()
   for level_down in range(HIST_DEPTH):
-    plt.plot(sample_inp[0,0,0+2*level_down],sample_inp[0,0,1+2*level_down],'k.')
+    plt.plot(sample_inp[0,0,0+3*level_down],sample_inp[0,0,1+3*level_down],'k.')
   plt.plot(sample_lab[:-1,0,0],sample_lab[:-1,0,1],'k.')
   plt.plot(sample_out[:-1,0,0],sample_out[:-1,0,1],'ro',markerfacecolor='None')
   plt.pause(1)
   ###################################### update the network
   epoch_error = 0
   for _ in range(ITERATIONS_PER_EPOCH):
-    x, y = generate_batch(SEQ_LENGTH,BATCH_SIZE,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
+    x, y = gen_data_batch(SEQ_LENGTH,BATCH_SIZE,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
     epoch_error += session.run([error,train_fn],{inputs:x,outputs:y})[0]
   epoch_error /= ITERATIONS_PER_EPOCH
   valid_error = session.run(error,{inputs:valid_x,outputs: valid_y})
