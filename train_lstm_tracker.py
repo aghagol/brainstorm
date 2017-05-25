@@ -55,7 +55,7 @@ for epoch in range(N_EPOCHS):
   for level_down in range(HIST_DEPTH):
     plt.plot(sample_inp[0,0,0+2*level_down],sample_inp[0,0,1+2*level_down],'k.')
   plt.plot(sample_lab[:-1,0,0],sample_lab[:-1,0,1],'k.')
-  plt.plot(sample_out[:-1,0,0],sample_out[:-1,0,1],'ro',markerfacecolor='None')
+  plt.plot(sample_out[:-1,0,0],sample_out[:-1,0,1],'ro',mfc='None')
   plt.pause(1)
   ###################################### update the network
   epoch_error = 0
