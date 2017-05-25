@@ -43,7 +43,7 @@ predicted_outputs = map_fn(final_projection, rnn_outputs)
 error = tf.reduce_mean((predicted_outputs-outputs)**2)
 train_fn = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(error)
 ###################################### training
-valid_x, valid_y = generate_batch(SEQ_LENGTH,100,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
+valid_x,valid_y = generate_batch(SEQ_LENGTH,100,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
 session = tf.Session()
 session.run(tf.initialize_all_variables())
 for epoch in range(N_EPOCHS):
@@ -60,7 +60,7 @@ for epoch in range(N_EPOCHS):
   ###################################### update the network
   epoch_error = 0
   for _ in range(ITERATIONS_PER_EPOCH):
-    x, y = generate_batch(SEQ_LENGTH,BATCH_SIZE,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
+    x,y = generate_batch(SEQ_LENGTH,BATCH_SIZE,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
     epoch_error += session.run([error,train_fn],{inputs:x,outputs:y})[0]
   epoch_error /= ITERATIONS_PER_EPOCH
   valid_error = session.run(error,{inputs:valid_x,outputs: valid_y})
