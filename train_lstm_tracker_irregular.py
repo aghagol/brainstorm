@@ -22,7 +22,7 @@ def gen_data_batch(seq_length,batch_size,curve_order,curve_step,hist_depth):
 ###################################### data parameters (for training and validation)
 CURVE_ORDER = 2
 CURVE_STEP = .5
-SEQ_LENGTH = 25
+SEQ_LENGTH = 30
 HIST_DEPTH = 2
 ###################################### model parameters
 USE_LSTM = True
@@ -31,8 +31,8 @@ OUTPUT_SIZE = 2
 RNN_HIDDEN = 111
 ###################################### training parameters
 BATCH_SIZE = 100
-LEARNING_RATE = .01
-N_EPOCHS = 10
+LEARNING_RATE = .001
+N_EPOCHS = 5000
 ITERATIONS_PER_EPOCH = 100
 ###################################### tf graph build-up
 inputs  = tf.placeholder(tf.float32, (None,None,INPUT_SIZE), name='inputs')  # (time, batch, in)

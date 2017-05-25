@@ -20,7 +20,7 @@ def gen_data_batch(seq_length,batch_size,curve_order,curve_step,hist_depth):
 ###################################### data parameters
 CURVE_ORDER = 2
 CURVE_STEP = .5
-SEQ_LENGTH = 25
+SEQ_LENGTH = 30
 HIST_DEPTH = 2
 ###################################### generate data
 valid_x, valid_y = gen_data_batch(SEQ_LENGTH,1,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
@@ -57,14 +57,14 @@ print('Preparing rnn results...')
 import tensorflow as tf
 sample_inp = valid_x[:,:1,:]
 sample_lab = valid_y[:,:1,:]
-saver = tf.train.import_meta_graph("my-model.meta")
+saver = tf.train.import_meta_graph("rnntracker.meta")
 with tf.Session() as session:
-  saver.restore(session, "my-model")
+  saver.restore(session, "rnntracker")
   sample_out = session.run("prediction:0",{"inputs:0":sample_inp})
-for level_down in range(HIST_DEPTH):
-  ax[1].plot(sample_inp[0,0,0+3*level_down],sample_inp[0,0,1+3*level_down],'k.')
+for level_down in range(HIST_DEPTH): #plot the the first #HIST_DEPTH points not present in output
+  ax[1].plot(sample_inp[0,0,0+3*level_down],sample_inp[0,0,1+3*level_down],'.',color='black')
 ax[1].plot(sample_lab[:-1,0,0],sample_lab[:-1,0,1],'.',color='black')
 ax[1].plot(sample_out[:-1,0,0],sample_out[:-1,0,1],'o',color='red',mfc='None')
 ax[1].plot(sample_out[:-1,0,0],sample_out[:-1,0,1],color='green')
-
+###################################### display
 plt.show()
