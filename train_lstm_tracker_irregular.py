@@ -32,7 +32,7 @@ RNN_HIDDEN = 111
 ###################################### training parameters
 BATCH_SIZE = 100
 LEARNING_RATE = .001
-N_EPOCHS = 5000
+N_EPOCHS = 10000
 ITERATIONS_PER_EPOCH = 100
 ###################################### tf graph build-up
 inputs  = tf.placeholder(tf.float32, (None,None,INPUT_SIZE), name='inputs')  # (time, batch, in)

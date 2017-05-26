@@ -4,6 +4,13 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+from filterpy.kalman import KalmanFilter
+import tensorflow as tf
+print('Loading a saved TF session')
+saver = tf.train.import_meta_graph("rnntracker.meta")
+session = tf.Session()
+saver.restore(session, "rnntracker")
+print('...done')
 ###################################### helper functions
 def gen_data_batch(seq_length,batch_size,curve_order,curve_step,hist_depth):
   x = np.empty((seq_length,batch_size,3*hist_depth))
@@ -17,54 +24,63 @@ def gen_data_batch(seq_length,batch_size,curve_order,curve_step,hist_depth):
     x[:,:,3*level_down:3*(level_down+1)] = np.roll(x[:,:,:3],-1*level_down,axis=0)
   y = np.roll(x[:,:,:2],-hist_depth,axis=0) #future locations
   return x[:-1*hist_depth,:,:], y[:-1*hist_depth,:,:]
+def kf_tracker(kf_instance,seq):
+  kf_instance.H = np.array([[1,0,0,0],[0,1,0,0]])
+  kf_instance.Q *= 1
+  kf_instance.R *= 0
+  kf_instance.x[:2] = seq[0,:2].reshape(2,1) #initialization
+  kf_instance.x[2:] = ((seq[1,:2]-seq[0,:2])/seq[0,2]).reshape(2,1) #cheating!
+  kf_instance.F = np.array([[1,0,seq[0,2],0],[0,1,0,seq[0,2]],[0,0,1,0],[0,0,0,1]])
+  kf_instance.predict()
+  kf_instance.update(seq[1,:2].reshape(2,1))
+  statelog = []
+  for i in range(2,seq.shape[0]):
+    kf_instance.F = np.array([[1,0,seq[i-1,2],0],[0,1,0,seq[i-1,2]],[0,0,1,0],[0,0,0,1]])
+    kf_instance.predict()
+    statelog.append(kf_instance.x.T)
+    kf_instance.update(seq[i,:2].reshape(2,1))
+  kf_instance.F = np.array([[1,0,seq[-1,2],0],[0,1,0,seq[-1,2]],[0,0,1,0],[0,0,0,1]])
+  kf_instance.predict()
+  statelog.append(kf_instance.x.T)
+  return np.vstack(statelog)
 ###################################### data parameters
 CURVE_ORDER = 2
 CURVE_STEP = .5
 SEQ_LENGTH = 30
 HIST_DEPTH = 2
+BATCH_SIZE = 100
 ###################################### generate data
-valid_x, valid_y = gen_data_batch(SEQ_LENGTH,1,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
-fig,ax = plt.subplots(1,2,figsize=(15,7))
-##################################################################################################################
-###################################### track using KF
-##################################################################################################################
-print('Preparing KF results')
-from filterpy.kalman import KalmanFilter
-kf = KalmanFilter(dim_x=4, dim_z=2)
-kf.H = np.array([[1,0,0,0],[0,1,0,0]])
-kf.Q *= 1
-kf.R *= 1
-kf.x[0],kf.x[1] = valid_x[0,0,0],valid_x[0,0,1] #initialization
-dt = valid_x[0,0,3]
-kf.F = np.array([[1,0,dt,0],[0,1,0,dt],[0,0,1,0],[0,0,0,1]])
-kf.predict()
-statelog = [kf.x.T]
-ax[0].plot(valid_x[:,0,0],valid_x[:,0,1],'.',color='black')
-kf.update(valid_x[1,0,:2].reshape(2,1))
-for i in range(2,valid_x.shape[0]):
-  dt = valid_x[i,0,3]
-  kf.F = np.array([[1,0,dt,0],[0,1,0,dt],[0,0,1,0],[0,0,0,1]])
-  kf.predict()
-  statelog.append(kf.x.T)
-  ax[0].plot(kf.x[0],kf.x[1],'o',color='red',mfc='none')
-  kf.update(valid_x[i,0,:2].reshape(2,1))
-statelog = np.vstack(statelog)
-ax[0].plot(statelog[:,0],statelog[:,1],color='green')
-##################################################################################################################
-###################################### track using RNN
-##################################################################################################################
-print('Preparing rnn results...')
-import tensorflow as tf
-sample_inp = valid_x[:,:1,:]
-sample_lab = valid_y[:,:1,:]
-saver = tf.train.import_meta_graph("rnntracker.meta")
-with tf.Session() as session:
-  saver.restore(session, "rnntracker")
-  sample_out = session.run("prediction:0",{"inputs:0":sample_inp})
-for level_down in range(HIST_DEPTH): #plot the the first #HIST_DEPTH points not present in output
-  ax[1].plot(sample_inp[0,0,0+3*level_down],sample_inp[0,0,1+3*level_down],'.',color='black')
-ax[1].plot(sample_lab[:-1,0,0],sample_lab[:-1,0,1],'.',color='black')
-ax[1].plot(sample_out[:-1,0,0],sample_out[:-1,0,1],'o',color='red',mfc='None')
-ax[1].plot(sample_out[:-1,0,0],sample_out[:-1,0,1],color='green')
-###################################### display
-plt.show()
+valid_x, valid_y = gen_data_batch(SEQ_LENGTH,BATCH_SIZE,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
+valid_y_rnn = session.run("prediction:0",{"inputs:0":valid_x})
+fig,ax = plt.subplots(1,3,figsize=(17,9))
+color = np.random.rand(100,3)
+for sample_idx in range(BATCH_SIZE):
+  for axi in ax: axi.cla()
+  for axi in ax[1:]:
+    axi.plot(valid_y[:-HIST_DEPTH+1,sample_idx,0],valid_y[:-HIST_DEPTH+1,sample_idx,1],'.',color='black')
+    for ll in range(HIST_DEPTH): axi.plot(valid_x[0,sample_idx,3*ll],valid_x[0,sample_idx,3*ll+1],'.',color='blue')
+  for i,point in enumerate(valid_x[:,sample_idx,:3].squeeze()):
+    ax[0].plot(point[0],point[1],'.',color=color[i])
+    ax[0].add_patch(plt.Circle((point[0],point[1]),radius=point[2],fill=False,color=color[i]))
+  ##################################################################################################################
+  ###################################### track using KF
+  ##################################################################################################################
+  statelog = kf_tracker(KalmanFilter(dim_x=4,dim_z=2),valid_x[:,sample_idx,:3].reshape(valid_x.shape[0],3))
+  ax[1].plot(statelog[:,0],statelog[:,1],'o',color='red',mfc='none')
+  ax[1].plot(statelog[:,0],statelog[:,1],color='green')
+  ax[1].set_title('KF')
+  ##################################################################################################################
+  ###################################### track using RNN
+  ##################################################################################################################
+  ax[2].plot(valid_y_rnn[:-HIST_DEPTH+1,sample_idx,0],valid_y_rnn[:-HIST_DEPTH+1,sample_idx,1],'o',color='red',mfc='None')
+  ax[2].plot(valid_y_rnn[:-HIST_DEPTH+1,sample_idx,0],valid_y_rnn[:-HIST_DEPTH+1,sample_idx,1],color='green')
+  ax[2].set_title('RNN')
+  ###################################### display for a few seconds
+  # for axi in ax:
+  #   # axi.set_xlim([(valid_x[:,sample_idx,0]-valid_x[:,sample_idx,2]).min(), (valid_x[:,sample_idx,0]+valid_x[:,sample_idx,2]).max()])
+  #   # axi.set_ylim([(valid_x[:,sample_idx,1]-valid_x[:,sample_idx,2]).min(), (valid_x[:,sample_idx,1]+valid_x[:,sample_idx,2]).max()])
+  #   axi.axis('image')
+  ax[0].axis('image')
+  # ax[1].axis('square')
+  # ax[2].axis('square')
+  plt.pause(5)
