@@ -62,25 +62,15 @@ for sample_idx in range(BATCH_SIZE):
   for i,point in enumerate(valid_x[:,sample_idx,:3].squeeze()):
     ax[0].plot(point[0],point[1],'.',color=color[i])
     ax[0].add_patch(plt.Circle((point[0],point[1]),radius=point[2],fill=False,color=color[i]))
-  ##################################################################################################################
   ###################################### track using KF
-  ##################################################################################################################
   statelog = kf_tracker(KalmanFilter(dim_x=4,dim_z=2),valid_x[:,sample_idx,:3].reshape(valid_x.shape[0],3))
   ax[1].plot(statelog[:,0],statelog[:,1],'o',color='red',mfc='none')
   ax[1].plot(statelog[:,0],statelog[:,1],color='green')
   ax[1].set_title('KF')
-  ##################################################################################################################
   ###################################### track using RNN
-  ##################################################################################################################
   ax[2].plot(valid_y_rnn[:-HIST_DEPTH+1,sample_idx,0],valid_y_rnn[:-HIST_DEPTH+1,sample_idx,1],'o',color='red',mfc='None')
   ax[2].plot(valid_y_rnn[:-HIST_DEPTH+1,sample_idx,0],valid_y_rnn[:-HIST_DEPTH+1,sample_idx,1],color='green')
   ax[2].set_title('RNN')
   ###################################### display for a few seconds
-  # for axi in ax:
-  #   # axi.set_xlim([(valid_x[:,sample_idx,0]-valid_x[:,sample_idx,2]).min(), (valid_x[:,sample_idx,0]+valid_x[:,sample_idx,2]).max()])
-  #   # axi.set_ylim([(valid_x[:,sample_idx,1]-valid_x[:,sample_idx,2]).min(), (valid_x[:,sample_idx,1]+valid_x[:,sample_idx,2]).max()])
-  #   axi.axis('image')
   ax[0].axis('image')
-  # ax[1].axis('square')
-  # ax[2].axis('square')
   plt.pause(5)
