@@ -6,10 +6,17 @@ warnings.filterwarnings("ignore")
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 from filterpy.kalman import KalmanFilter
 import tensorflow as tf
+###################################### data parameters
+CURVE_ORDER = 2
+CURVE_STEP = .5
+SEQ_LENGTH = 30
+HIST_DEPTH = 2
+BATCH_SIZE = 100
+###################################### overhead work
 print('Loading a saved TF session')
-saver = tf.train.import_meta_graph("rnntracker.meta")
+saver = tf.train.import_meta_graph('rnntracker-polyn%d.meta'%(CURVE_ORDER))
 session = tf.Session()
-saver.restore(session, "rnntracker")
+saver.restore(session,'rnntracker-polyn%d'%(CURVE_ORDER))
 print('...done')
 ###################################### helper functions
 def gen_data_batch(seq_length,batch_size,curve_order,curve_step,hist_depth):
@@ -43,12 +50,6 @@ def kf_tracker(kf_instance,seq):
   kf_instance.predict()
   statelog.append(kf_instance.x.T)
   return np.vstack(statelog)
-###################################### data parameters
-CURVE_ORDER = 2
-CURVE_STEP = .5
-SEQ_LENGTH = 30
-HIST_DEPTH = 2
-BATCH_SIZE = 100
 ###################################### generate data
 valid_x, valid_y = gen_data_batch(SEQ_LENGTH,BATCH_SIZE,CURVE_ORDER,CURVE_STEP,HIST_DEPTH)
 valid_y_rnn = session.run("prediction:0",{"inputs:0":valid_x})
