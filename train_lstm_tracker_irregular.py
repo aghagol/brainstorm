@@ -36,20 +36,29 @@ USE_LSTM = True
 INPUT_SIZE = POINT_DIM*OBS_DEPTH
 OUTPUT_SIZE = 2
 RNN_HIDDEN = 25
+NUM_LAYERS = 2
 ###################################### training parameters
 BATCH_SIZE = 100
 LEARNING_RATE = .001
 N_EPOCHS = 100000
 ITERATIONS_PER_EPOCH = 100
 ###################################### tf graph build-up
+# create place holders for input, output and some run-time parameters
 inputs  = tf.placeholder(tf.float32, (None,None,INPUT_SIZE), name='inputs')  # (time, batch, in)
 outputs = tf.placeholder(tf.float32, (None,None,OUTPUT_SIZE)) # (time, batch, out)
-cell = tf.contrib.rnn.BasicLSTMCell(RNN_HIDDEN, state_is_tuple=True)
+out_keep_prob = tf.placeholder(tf.float32, name='out_keep_prob')
+# make a list of LSTM layers
+cells_list = [tf.contrib.rnn.BasicLSTMCell(RNN_HIDDEN, state_is_tuple=True) for _ in range(NUM_LAYERS)]
+# cells_with_dropout = [tf.contrib.rnn.DropoutWrapper(cell=each_cell, output_keep_prob=out_keep_prob) for each_cell in cells_list]
+cells_with_dropout = cells_list
+# build a deep LSTM network
+cell = tf.contrib.rnn.MultiRNNCell(cells=cells_with_dropout, state_is_tuple=True)
 initial_state = cell.zero_state(tf.shape(inputs)[1], tf.float32)
 rnn_output, rnn_state = tf.nn.dynamic_rnn(cell, inputs, initial_state=initial_state, time_major=True)
 fc1 = lambda x: layers.fully_connected(x, num_outputs=OUTPUT_SIZE, activation_fn=None)
 fc1_output = map_fn(fc1, rnn_output)
 prediction = tf.identity(fc1_output, name='prediction') #dummy tensor
+# add cost layer for optimization
 error = tf.reduce_mean((fc1_output-outputs)**2)
 train_fn = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE).minimize(error)
 ###################################### training
@@ -62,7 +71,7 @@ with tf.Session() as session:
       ###################################### plot a sample network output
       if VERBOSE:
         sample_inp = valid_x[:,:1,:]
-        sample_out = session.run("prediction:0",{"inputs:0":sample_inp})
+        sample_out = session.run("prediction:0",{"inputs:0":valid_x,"out_keep_prob:0":1})[:,:1,:]
         sample_lab = valid_y[:,:1,:]
         plt.clf()
         for step_back in range(OBS_DEPTH):
@@ -75,9 +84,9 @@ with tf.Session() as session:
       epoch_error = 0
       for _ in range(ITERATIONS_PER_EPOCH):
         x,y = gen_data_batch(SEQ_LENGTH,BATCH_SIZE,CURVE_ORDER,CURVE_STEP,OBS_DEPTH,POINT_DIM)
-        epoch_error += session.run([error,train_fn],{inputs:x,outputs:y})[0]
+        epoch_error += session.run([error,train_fn],{inputs:x,outputs:y,out_keep_prob:1})[0]
       epoch_error /= ITERATIONS_PER_EPOCH
-      valid_error = session.run(error,{inputs:valid_x,outputs:valid_y})
+      valid_error = session.run(error,{inputs:valid_x,outputs:valid_y,out_keep_prob:1})
       print("Epoch %d, train error: %.10f, valid error: %.10f"%(epoch,epoch_error,valid_error))
     ###################################### save the trained net
     saver.save(session,'rnntracker-polyn%d'%(CURVE_ORDER))

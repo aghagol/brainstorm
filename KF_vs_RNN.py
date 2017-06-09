@@ -14,6 +14,7 @@ POINT_DIM = 5
 OBS_DEPTH = 1
 BATCH_SIZE = 100
 ###################################### load the TF session
+MODEL_SUFFIX = ''
 MODEL_SUFFIX = '.tmp'
 print('Loading a saved TF session')
 saver = tf.train.import_meta_graph('rnntracker-polyn%d%s.meta'%(CURVE_ORDER,MODEL_SUFFIX))
@@ -65,23 +66,23 @@ def kf_tracker(kf_instance,seq):
     kf_instance.predict()
     statelog.append(kf_instance.x.T)
     kf_instance.update(seq[i,:2].reshape(2,1))
-  kf_instance.F = np.array([[1,0,seq[-1,2],0],[0,1,0,seq[-1,2]],[0,0,1,0],[0,0,0,1]])
-  kf_instance.predict()
-  statelog.append(kf_instance.x.T)
+  # kf_instance.F = np.array([[1,0,seq[-1,2],0],[0,1,0,seq[-1,2]],[0,0,1,0],[0,0,0,1]])
+  # kf_instance.predict()
+  # statelog.append(kf_instance.x.T)
   return np.vstack(statelog)
 ###################################### generate data
 valid_x, valid_y = gen_data_batch(SEQ_LENGTH,BATCH_SIZE,CURVE_ORDER,CURVE_STEP,OBS_DEPTH,POINT_DIM)
-valid_y_rnn = session.run("prediction:0",{"inputs:0":valid_x})
+valid_y_rnn = session.run("prediction:0",{"inputs:0":valid_x,"out_keep_prob:0":1})
 fig,ax = plt.subplots(1,3,figsize=(17,9))
 color = np.random.rand(100,3)
 for sample_idx in range(BATCH_SIZE):
   for axi in ax: axi.cla()
-  for axi in ax[1:]:
+  for axi in ax[0:]:
     axi.plot(valid_y[:1-max(OBS_DEPTH,2),sample_idx,0],valid_y[:1-max(OBS_DEPTH,2),sample_idx,1],'k.')
     for ll in range(OBS_DEPTH): axi.plot(valid_x[0,sample_idx,POINT_DIM*ll],valid_x[0,sample_idx,POINT_DIM*ll+1],'b.')
-  for i,point in enumerate(valid_x[:,sample_idx,:].squeeze()):
-    ax[0].plot(point[0],point[1],'.',color=color[i])
-    ax[0].add_patch(plt.Circle((point[0],point[1]),radius=point[POINT_DIM-1],fill=False,color=color[i]))
+  # for i,point in enumerate(valid_x[:,sample_idx,:].squeeze()):
+  #   ax[0].plot(point[0],point[1],'.',color=color[i])
+  #   ax[0].add_patch(plt.Circle((point[0],point[1]),radius=point[POINT_DIM-1],fill=False,color=color[i]))
   ###################################### track using KF
   statelog = kf_tracker(KalmanFilter(dim_x=4,dim_z=2),valid_x[:,sample_idx,[0,1,POINT_DIM-1]].reshape(valid_x.shape[0],3))
   ax[1].plot(statelog[:,0],statelog[:,1],'o',color='red',mfc='none')
@@ -92,5 +93,5 @@ for sample_idx in range(BATCH_SIZE):
   ax[2].plot(valid_y_rnn[:1-max(OBS_DEPTH,2),sample_idx,0],valid_y_rnn[:1-max(OBS_DEPTH,2),sample_idx,1],'g')
   ax[2].set_title('RNN')
   ###################################### display for a few seconds
-  ax[0].axis('image')
+  # ax[0].axis('image')
   plt.pause(5)
