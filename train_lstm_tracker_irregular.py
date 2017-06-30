@@ -2,7 +2,6 @@ import numpy as np
 import random
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
-map_fn = tf.map_fn
 import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore")
@@ -56,7 +55,7 @@ cell = tf.contrib.rnn.MultiRNNCell(cells=cells_with_dropout, state_is_tuple=True
 initial_state = cell.zero_state(tf.shape(inputs)[1], tf.float32)
 rnn_output, rnn_state = tf.nn.dynamic_rnn(cell, inputs, initial_state=initial_state, time_major=True)
 fc1 = lambda x: layers.fully_connected(x, num_outputs=OUTPUT_SIZE, activation_fn=None)
-fc1_output = map_fn(fc1, rnn_output)
+fc1_output = tf.map_fn(fc1, rnn_output)
 prediction = tf.identity(fc1_output, name='prediction') #dummy tensor
 # add cost layer for optimization
 error = tf.reduce_mean((fc1_output-outputs)**2)
